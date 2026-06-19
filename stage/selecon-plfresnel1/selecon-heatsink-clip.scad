@@ -25,12 +25,16 @@ screw_boss_dia   = 10.0;
 // How far the cylinders extend upward from the plate face
 screw_boss_height = 3.0;
 
-/* [Cross struts] */
+/* [Reinforcing Cross Struts] */
 
-// Width of the reinforcing cross struts
-strut_width      = 5.0;
-// Vertical thickness of the struts 
-strut_thickness  = 3.0;
+// Aerodynamic shape of the cross struts (0 = Rectangular, 1 = Aerodynamic Diamond)
+strut_profile = 1; // [0:Rectangular, 1:Aerodynamic Diamond]
+
+// Width of the reinforcing cross struts crossing the air intake
+strut_width = 5.0;
+
+// Vertical thickness of the reinforcing cross struts
+strut_thickness = 3.0;
 
 /* [Selecon heatsink geometry] */
 
@@ -46,9 +50,25 @@ groove_tongue_inward  = 2.5;
 track_lip_height      = 3.0;
 
 
-// Derived Math
+// --- PRE-CALCULATED VALUES ---
 total_width  = heatsink_width + (2 * moulding_wall_thick);
 total_height = groove_depth_from_top + track_lip_height;
+
+// --- CUSTOM MODULES ---
+
+// Generates a single diagonal strut across the bore
+module generate_strut() {
+    if (strut_profile == 1) {
+        // Aerodynamic Diamond Profile (Tapered top and bottom to slice downward airflow)
+        translate([0, 0, plate_thickness - strut_thickness/2])
+            rotate([0, 90, 0])
+                cylinder(d1=strut_thickness, d2=strut_thickness, h=fan_airflow_dia, center=true, $fn=4);
+    } else {
+        // Standard Rectangular Profile
+        translate([-fan_airflow_dia/2, -strut_width/2, plate_thickness - strut_thickness])
+            cube([fan_airflow_dia, strut_width, strut_thickness]);
+    }
+}
 
 // --- MAIN ASSEMBLY ---
 difference() {
@@ -78,29 +98,25 @@ difference() {
         // 5. Reinforcing Cross Struts (X-Pattern across the central bore)
         // Strut 1 (Diagonal Left-To-Right)
         rotate([0, 0, 45])
-            translate([-fan_airflow_dia/2, -strut_width/2, plate_thickness - strut_thickness])
-                cube([fan_airflow_dia, strut_width, strut_thickness]);
+            generate_strut();
                 
         // Strut 2 (Diagonal Right-To-Left)
         rotate([0, 0, -45])
-            translate([-fan_airflow_dia/2, -strut_width/2, plate_thickness - strut_thickness])
-                cube([fan_airflow_dia, strut_width, strut_thickness]);
+            generate_strut();
     }
     
     // --- HOLES AND MECHANICAL SUBTRACTIONS ---
     
-    // 6. Central Airflow Borehole (Cut through base plate but preserves the struts)
+    // 6. Central Airflow Borehole (Preserving the struts)
     difference() {
         translate([0, 0, -total_height - 1])
             cylinder(d = fan_airflow_dia, h = total_height + plate_thickness + 2);
         
         // Keep the struts intact inside the bore by masking them
         rotate([0, 0, 45])
-            translate([-fan_airflow_dia/2, -strut_width/2, plate_thickness - strut_thickness])
-                cube([fan_airflow_dia, strut_width, strut_thickness + 1]);
+            generate_strut();
         rotate([0, 0, -45])
-            translate([-fan_airflow_dia/2, -strut_width/2, plate_thickness - strut_thickness])
-                cube([fan_airflow_dia, strut_width, strut_thickness + 1]);
+            generate_strut();
     }
     
     // 7. Core Sliding Channel Clearance (Heatsink sliding path)
