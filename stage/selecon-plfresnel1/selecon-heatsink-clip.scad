@@ -27,14 +27,17 @@ screw_boss_height = 3.0;
 
 /* [Reinforcing Cross Struts] */
 
-// Aerodynamic shape of the cross struts (0 = Rectangular, 1 = Aerodynamic Diamond)
-strut_profile = 1; // [0:Rectangular, 1:Aerodynamic Diamond]
-
+// Aerodynamic shape of the cross struts (0 = Rectangular, 1 = Aerodynamic Diamond, 2 = Asymmetric Pitch Foil)
+strut_profile = 2; // [0:Rectangular, 1:Aerodynamic Diamond, 2:Asymmetric Pitch Foil]
 // Width of the reinforcing cross struts crossing the air intake
 strut_width = 5.0;
-
 // Vertical thickness of the reinforcing cross struts
 strut_thickness = 3.0;
+// Aerodynamic angle of attack in degrees to match fan swirl rotation (positive for clockwise fans, negative for counter-clockwise)
+fan_swirl_angle = 15; // [-45:45]
+
+// Enable built-in thin sacrificial support walls under the struts for clean 3D printing
+enable_print_supports = 1; // [0:Disabled, 1:Enabled]
 
 /* [Selecon heatsink geometry] */
 
@@ -56,13 +59,31 @@ total_height = groove_depth_from_top + track_lip_height;
 
 // --- CUSTOM MODULES ---
 
-// Generates a single diagonal strut across the bore
+// Generates a single diagonal strut across the bore with advanced aerodynamic options
 module generate_strut() {
-    if (strut_profile == 1) {
-        // Aerodynamic Diamond Profile (Tapered top and bottom to slice downward airflow)
-        translate([0, 0, plate_thickness - strut_thickness/2])
-            rotate([0, 90, 0])
-                cylinder(d1=strut_thickness, d2=strut_thickness, h=fan_airflow_dia, center=true, $fn=4);
+    if (strut_profile == 2) {
+        // Asymmetric Pitch Foil: Re-ordered points to ensure a valid clockwise path
+        // The extruded profile is correctly rotated so it bridges the airflow gap
+        translate([0, 0, plate_thickness - strut_thickness])
+            rotate([90, 0, 90])
+                linear_extrude(height = fan_airflow_dia, center = true)
+                    polygon(points = [
+                        [0, -strut_width/2],                                        // 1. Trailing Edge (Bottom)
+                        [strut_thickness, tan(fan_swirl_angle) * strut_thickness],   // 2. Pitched Leading Edge (Top shifted by fan swirl)
+                        [strut_thickness/2, strut_width/2],                          // 3. Right Flank
+                        [-strut_thickness/2, strut_width/2]                          // 4. Left Flank
+                    ]);
+    } else if (strut_profile == 1) {
+        // Aerodynamic Diamond Profile (Symmetric top and bottom)
+        translate([0, 0, plate_thickness - strut_thickness])
+            rotate([90, 0, 90])
+                linear_extrude(height = fan_airflow_dia, center = true)
+                    polygon(points = [
+                        [0, -strut_width/2],        // Bottom center trailing edge
+                        [strut_thickness/2, 0],     // Right vertex
+                        [strut_thickness, 0],       // Top center leading edge
+                        [-strut_thickness/2, 0]     // Left vertex
+                    ]);
     } else {
         // Standard Rectangular Profile
         translate([-fan_airflow_dia/2, -strut_width/2, plate_thickness - strut_thickness])
