@@ -59,40 +59,6 @@
     total_height = groove_depth_from_top + track_lip_height;
 #end();
 
-// --- CUSTOM MODULES ---
-
-// Generates a single diagonal strut across the bore with advanced aerodynamic options
-module generate_strut() {
-    if (strut_profile == 2) {
-        // Asymmetric Pitch Foil: Re-ordered points to ensure a valid clockwise path
-        // The extruded profile is correctly rotated so it bridges the airflow gap
-        translate([0, 0, plate_thickness - strut_thickness])
-            rotate([90, 0, 90])
-                linear_extrude(height = fan_airflow_dia, center = true)
-                    polygon(points = [
-                        [0, -strut_width/2],                                        // 1. Trailing Edge (Bottom)
-                        [strut_thickness, tan(fan_swirl_angle) * strut_thickness],   // 2. Pitched Leading Edge (Top shifted by fan swirl)
-                        [strut_thickness/2, strut_width/2],                          // 3. Right Flank
-                        [-strut_thickness/2, strut_width/2]                          // 4. Left Flank
-                    ]);
-    } else if (strut_profile == 1) {
-        // Aerodynamic Diamond Profile (Symmetric top and bottom)
-        translate([0, 0, plate_thickness - strut_thickness])
-            rotate([90, 0, 90])
-                linear_extrude(height = fan_airflow_dia, center = true)
-                    polygon(points = [
-                        [0, -strut_width/2],        // Bottom center trailing edge
-                        [strut_thickness/2, 0],     // Right vertex
-                        [strut_thickness, 0],       // Top center leading edge
-                        [-strut_thickness/2, 0]     // Left vertex
-                    ]);
-    } else {
-        // Standard Rectangular Profile
-        translate([-fan_airflow_dia/2, -strut_width/2, plate_thickness - strut_thickness])
-            cube([fan_airflow_dia, strut_width, strut_thickness]);
-    }
-}
-
 // --- MAIN ASSEMBLY ---
 difference() {
     union() {
@@ -140,10 +106,4 @@ difference() {
     translate([-fan_hole_spacing/2, -fan_hole_spacing/2, -total_height - 1])
         cylinder(d = screw_hole_dia, h = total_height + plate_thickness + screw_boss_height + 2);
 }
-
-rotate([0, 0, 45])
-    generate_strut();
-        
-rotate([0, 0, -45])
-    generate_strut();
 
